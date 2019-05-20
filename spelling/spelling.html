@@ -55,9 +55,9 @@ class SpellingGame {
      self = this;
      self.puzzleData = puzzleData();
      self.alreadyFoundWords = [];
-     var letters = this.puzzleData.letters;
+     var letters = self.puzzleData.letters;
 
-     this.puzzleDiv =  d3.select(container).append("div")
+     self.puzzleDiv =  d3.select(container).append("div")
                                            .attr("id","SVGDiv")
                                            .attr("min-width","10cmn")
 
@@ -68,16 +68,9 @@ class SpellingGame {
 
      var letterMap = { 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6 }
      self.theWord = '';
-     this.puzzleDiv.append('p')
-                   .attr('id','banner')
-                   .text('Welcome to the not the Spelling Bee')
-                   .style("opacity",1)
-                   .style("width","100%")
-                   .style("text-align","block")
-                   .transition()
-                   .duration(5000)
-                   .style("opacity",0);
-     var svg = this.puzzleDiv.append('svg')
+     self.save = '';
+
+     var svg = self.puzzleDiv.append('svg')
                    .attr("width","100%")
                    .attr("viewBox","-30 -40 60 70")
 
@@ -105,15 +98,40 @@ class SpellingGame {
      svg.append('text')
         .attr("x",0)
         .attr("y",-30)
-        .style("font-size","10px")
         .style("font-family","sans-serif")
         .style("text-anchor","middle")
-        .attr("id","theWord");
+        .attr("id","banner");
+
+     d3.select("#banner")
+        .text('This is not the Spelling Bee')
+        .attr("class","status-text")
+        .style("opacity",1)
+        .style("width","100%")
+        .style("text-align","block")
+        .transition()
+        .duration(5000)
+        .style("opacity",0);
 
      d3.select("#wordInfo p").text("There are "+
-               this.puzzleData.total_words +
+               self.puzzleData.total_words +
                " words with a total score of " +
-               this.puzzleData.highest_score+".");
+               self.puzzleData.highest_score+".");
+
+     // is there a cookie?
+     var cookie = document.cookie;
+     console.log('cookie is '+cookie);
+     if (cookie != null) {
+       cookie.split(';').forEach( (item) => {
+         if (item.trim().indexOf('wordList=') == 0) {
+           var cookieList  = item.trim().replace("wordList=","").split(',');
+           var listLetters = cookieList.shift();
+           console.log("***"+listLetters+"***")
+           if (listLetters == self.puzzleData.letters) {
+             cookieList.forEach( (a) => { self.checkValidWord(a) });
+           }
+         }
+       });
+     }
 
      // event handler for shuffle button
      d3.select("#shuffle").on("click", () => {
@@ -135,67 +153,103 @@ class SpellingGame {
        console.log("hit the delete button")
        if (self.theWord.length > 0) {
          self.theWord = self.theWord.substr(0,self.theWord.length-1)
-         d3.select("#theWord").text(self.theWord);
+         d3.select("#banner")
+           .text(self.theWord)
+           .attr("class","word-text")
+           .style("opacity",1)
        }
      })
      // event handler for the letter boxes
      d3.selectAll(".letter").on("click", (e,i) => {
        var ele = d3.select(e);
        self.theWord = self.theWord + letters.substr(letterMap[e.ctr],1);
-       d3.select("#theWord").text(self.theWord);
+       d3.select("#banner")
+         .text(self.theWord)
+         .attr("class","word-text")
+         .style("opacity",1)
      })
      // and keys
      document.onkeydown = function(e) {
        var keySymbol = (e.key).toUpperCase();
        if (keySymbol.length == 1 && letters.indexOf(keySymbol) != -1) {
          self.theWord = self.theWord + keySymbol;
-         d3.select("#theWord").text(self.theWord);
+         d3.select("#banner")
+           .text(self.theWord)
+           .attr("class","word-text")
+           .style("opacity",1)
+           .interrupt()
        } else if ((keySymbol == 'BACKSPACE' || keySymbol == 'DELETE') && self.theWord.length > 0 ){
          self.theWord = self.theWord.substr(0,self.theWord.length-1)
-         d3.select("#theWord").text(self.theWord);
+         d3.select("#banner").text(self.theWord);
        } else if ( keySymbol == 'ENTER' ) {
          self.processWord();
        }
      }
 
-  }
 
+  }
 
   processWord() {
     self = this;
     d3.select("#banner")
       .style('opacity',1)
+      .attr("class","status-text")
       .text(self.checkValidWord(self.theWord))
       .transition()
       .duration(2000)
       .style('opacity',0);
     self.theWord = ''
-    d3.select("#theWord").text(self.theWord);
   }
 
   checkValidWord(w) {
     var self = this;
     if (w.length ==0) return 'Need to supply a word.'
     if (w.length < 4) return w+' is too short.';
-    if (w.indexOf(this.puzzleData.letters.substr(0,1)) == -1) return w+' does not contain the center letter.';
-    if (self.alreadyFoundWords.includes(w)) return w+' has already been found.';
+    if (w.indexOf(self.puzzleData.letters.substr(0,1)) == -1) return w+' does not contain the center letter.';
+    if (self.alreadyFoundWords.includes(w)) return 'This word already found.';
     var md5 = window.md5.md5(w);
     var status = w+' is not a valid word.';
-    this.puzzleData.words.forEach((a) => { if (a == md5) {
+    self.puzzleData.words.forEach((a) => { if (a == md5) {
                                             status = w+' is a valid word.';
                                             self.alreadyFoundWords.push(w);
                                           d3.select("#wordInfo p").text("There are "+
-                                                    this.puzzleData.total_words +
+                                                    self.puzzleData.total_words +
                                                     " words with a total score of " +
-                                                    this.puzzleData.highest_score)
+                                                    self.puzzleData.highest_score)
+                                                   .append("p").text(
+                                                    "You have "+self.alreadyFoundWords.length+
+                                                    " word"+((self.alreadyFoundWords.length>1)?"s ":" ")+
+                                                    "with a score of "+self.points())
                                                    .append("p").text(
                                                     self.alreadyFoundWords.sort().join(' '));
+                                          if (!self.save) {
+                                            self.save = d3.select("#wordInfo")
+                                                          .append("button")
+                                                          .attr("id","save")
+                                                          .text("Save");
+                                            d3.selectAll("#save").on("click",(e) => {
+                                              console.log("hit the save button")
+                                              var d = new Date;
+                                              // expire in a week
+                                              d.setTime(d.getTime() + 24*60*60*1000*7);
+                                              document.cookie = "wordList="+self.puzzleData.letters+
+                                                                ","+self.alreadyFoundWords.join(",")+
+                                                                ";path=/;expires=" + d.toGMTString();
+                                           });
+                                         }
                                             return;
                                            }
                                          });
     return status;
   }
+  points() {
+    var self = this;
+    var score = 0;
+    self.alreadyFoundWords.forEach( (a) => { score = score + (a.length-3) })
+    return score;
+  }
 }
+
 
 
 var game = new SpellingGame("#hex");

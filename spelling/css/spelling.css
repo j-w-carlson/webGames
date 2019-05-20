@@ -17,6 +17,9 @@ text { font-weight: bold;
     font-size: 20pt;
   }
 
+text.status-text { font-size: 4px; }
+text.word-text { font-size: 10px; }
+
 #wordInfo p {
     font-size: 10pt;
     font-family: sans-serif;
